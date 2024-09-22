@@ -1,0 +1,98 @@
+
+#Optional
+#version: "3.9"
+
+#To get into a database
+#   psql -U postgres -d Postgres -h localhost -p 5432
+
+#create the user vagrant and set the password vagrant
+#   create role vagrant superuser createdb createrole login replication bypassrls;
+#   alter user vagrant with password 'vagrant';
+
+#If you set the variables
+#   export PGHOST="localhost"
+#   export PGPASSWORD="vagrant"
+#at the end of the file ~/.bashrc
+#on open a new terminal you will be able to get into a database like below
+#   psql -d postgres
+
+#The project name is the folder name containning the docker-compose.yml. 
+#The container will be named has project-name_service-name_container-number
+#In this case postgis_postgis_1
+#See it with:
+#  sudo docker ps
+#or, in case the container is stopped:
+#   sudo docker ps -a 
+
+#The network will be named as project-name_service-name
+#In this case postgis_postgis
+#See it with: 
+#   sudo docker network ls
+
+#To use the postgis service in other docker-compose network, you have to 
+#declare it in the service, and declare it as external in the network list.
+
+#Example
+# services:
+#   geoserver:
+#     image: docker.osgeo.org/geoserver:2.24.2
+#     restart: "no"
+#     ports:
+#       - 8083:8080
+#     env_file:
+#         - .env.dev
+#     volumes:
+#       - ./geoserver_data:/opt/geoserver_data/:Z
+#       - ./additional_libs:/opt/additional_libs:Z # by mounting this we can install libs from host on startup
+#     networks:
+#       - postgis_postgis
+
+# networks:
+#    postgis_postgis:
+#       driver: bridge
+#       external: true
+
+#How to access to the postgis service?. It depends form where you want to access.
+#Docker network are internal, you must access, FROM OTHER DOCKER SERVICES:
+#Access from other docker sercies:
+# - Host: the name of the host of the service in the docker-compose.yml (postigs).
+# - Port: the internal port (5432).
+
+#Access from the host:
+# - Host: the name of the host localhost, or domain name.
+# - Port: the forwarded port (5440).
+
+version: '3.1'
+services:
+  # Use root/example as user/password credentials
+  mongodb:
+    image: mongo:4
+    #command: --serviceExecutor adaptive
+    env_file:
+      - .env 
+      - .env.dev
+    restart: "no"
+    container_name: mongodb_bigdata_01
+    ports:
+      - ${FORWARDED_PORT_MONGODB}:27017
+    
+    volumes:
+      - ./init/init-script.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - ./data:/data/db
+      - ./data/log:/var/log/mongodb/
+    networks:
+      - mongodb
+  mongo-express:
+    image: mongo-express:1.0.2-20-alpine3.19
+    container_name: mongodb_express_bigdata_01
+    restart: "no"
+    ports:
+      - ${FORWARDED_PORT_MONGOEXPRESS}:8081 
+    env_file:
+      - .env 
+      - .env.dev
+    networks:
+      - mongodb
+networks:
+   mongodb:
+      driver: bridge   
